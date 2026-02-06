@@ -22,7 +22,7 @@ Press `Option+Space`, type your prompt, and get a streamed response in a lightwe
 ## Install
 
 ```bash
-brew install --cask camin-mccluskey/tools/quick-ai
+brew install --cask camin-mccluskey/tap/quick-ai
 ```
 
 ## First Run
