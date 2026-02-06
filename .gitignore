@@ -5,6 +5,7 @@ build/
 xcuserdata/
 *.xccheckout
 *.moved-aside
+Quick\ AI.app
 
 # macOS
 .DS_Store
