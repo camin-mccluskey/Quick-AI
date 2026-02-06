@@ -3,6 +3,18 @@ import os
 
 private let logger = Logger(subsystem: "com.quickai", category: "AppState")
 
+enum AppDefaults {
+    static var shared: UserDefaults {
+        guard let suiteName = ProcessInfo.processInfo.environment["QUICK_AI_DEFAULTS_SUITE"],
+              !suiteName.isEmpty,
+              let defaults = UserDefaults(suiteName: suiteName)
+        else {
+            return .standard
+        }
+        return defaults
+    }
+}
+
 @Observable
 @MainActor
 final class AppState {
@@ -10,6 +22,7 @@ final class AppState {
     var response = ""
     var renderedResponse = AttributedString("")
     var isLoading = false
+    var isSearchingWeb = false
     var error: String?
 
     private let service = OpenRouterService()
@@ -17,8 +30,8 @@ final class AppState {
     private var markdownRenderTask: Task<Void, Never>?
 
     var selectedModel: String {
-        get { UserDefaults.standard.string(forKey: "selectedModel") ?? "google/gemini-2.0-flash-001" }
-        set { UserDefaults.standard.set(newValue, forKey: "selectedModel") }
+        get { AppDefaults.shared.string(forKey: "selectedModel") ?? "google/gemini-2.0-flash-001" }
+        set { AppDefaults.shared.set(newValue, forKey: "selectedModel") }
     }
 
     func submit() {
@@ -42,14 +55,28 @@ final class AppState {
         streamTask = Task { @MainActor in
             defer {
                 isLoading = false
+                isSearchingWeb = false
                 streamTask = nil
             }
 
             do {
+                let searchProvider: SearchProvider? = {
+                    guard let searchAPIKey = KeychainManager.load(key: "brave-search-api-key"), !searchAPIKey.isEmpty else {
+                        return nil
+                    }
+                    return BraveSearchProvider(apiKey: searchAPIKey)
+                }()
+
                 let stream = service.streamCompletion(
                     query: trimmed,
                     apiKey: apiKey,
-                    model: model
+                    model: model,
+                    searchProvider: searchProvider,
+                    onSearchActivityChanged: { [weak self] isSearching in
+                        Task { @MainActor in
+                            self?.isSearchingWeb = isSearching
+                        }
+                    }
                 )
 
                 for try await token in stream {
@@ -76,6 +103,7 @@ final class AppState {
         response = ""
         renderedResponse = AttributedString("")
         isLoading = false
+        isSearchingWeb = false
         error = nil
     }
 

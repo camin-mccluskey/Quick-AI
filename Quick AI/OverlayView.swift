@@ -42,6 +42,18 @@ struct OverlayView: View {
                 Divider()
 
                 VStack(spacing: 0) {
+                    if appState.isSearchingWeb {
+                        HStack(spacing: 6) {
+                            Image(systemName: "globe")
+                                .font(.system(size: 11, weight: .medium))
+                            Text("Searching web...")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 10)
+                        .padding(.horizontal, 16)
+                    }
+
                     if let feedback = copyFeedbackText {
                         HStack {
                             Spacer()
@@ -141,7 +153,7 @@ struct OverlayView: View {
             .padding(12)
             .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         } else if appState.response.isEmpty && appState.isLoading {
-            Text("Thinking...")
+            Text(appState.isSearchingWeb ? "Looking up current info..." : "Thinking...")
                 .foregroundStyle(.secondary)
                 .font(.system(size: 14))
         } else {

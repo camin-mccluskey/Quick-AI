@@ -20,10 +20,9 @@ final class Quick_AIUITestsLaunchTests: XCTestCase {
     @MainActor
     func testLaunch() throws {
         let app = XCUIApplication()
+        app.launchEnvironment["QUICK_AI_DEFAULTS_SUITE"] = "ui.tests.quickai.launch.\(UUID().uuidString)"
+        app.launchEnvironment["QUICK_AI_KEYCHAIN_SERVICE"] = "ui.tests.quickai.keychain.\(UUID().uuidString)"
         app.launch()
-
-        // Insert steps here to perform after app launch but before taking a screenshot,
-        // such as logging into a test account or navigating somewhere in the app
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Launch Screen"

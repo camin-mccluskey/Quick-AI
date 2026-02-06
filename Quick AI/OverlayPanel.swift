@@ -121,8 +121,8 @@ final class OverlayPanel: NSPanel, NSWindowDelegate {
     }
 
     func windowDidMove(_ notification: Notification) {
-        UserDefaults.standard.set(frame.origin.x, forKey: DefaultsKey.originX)
-        UserDefaults.standard.set(frame.origin.y, forKey: DefaultsKey.originY)
+        AppDefaults.shared.set(frame.origin.x, forKey: DefaultsKey.originX)
+        AppDefaults.shared.set(frame.origin.y, forKey: DefaultsKey.originY)
     }
 
     private func setExpandedState(_ isExpanded: Bool, animated: Bool = true) {
@@ -160,7 +160,7 @@ final class OverlayPanel: NSPanel, NSWindowDelegate {
     }
 
     private func savedOrigin() -> NSPoint? {
-        let defaults = UserDefaults.standard
+        let defaults = AppDefaults.shared
         guard defaults.object(forKey: DefaultsKey.originX) != nil,
               defaults.object(forKey: DefaultsKey.originY) != nil
         else {
@@ -179,4 +179,3 @@ final class OverlayPanel: NSPanel, NSWindowDelegate {
         return NSPoint(x: clampedX, y: clampedY)
     }
 }
-

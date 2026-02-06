@@ -2,7 +2,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @State private var apiKey: String = ""
-    @State private var selectedModel: String = UserDefaults.standard.string(forKey: "selectedModel")
+    @State private var braveSearchAPIKey: String = ""
+    @State private var selectedModel: String = AppDefaults.shared.string(forKey: "selectedModel")
         ?? "google/gemini-2.0-flash-001"
 
     private let models = [
@@ -18,6 +19,7 @@ struct SettingsView: View {
                 SecureField("API Key", text: $apiKey)
                     .onAppear {
                         apiKey = KeychainManager.load(key: "openrouter-api-key") ?? ""
+                        braveSearchAPIKey = KeychainManager.load(key: "brave-search-api-key") ?? ""
                     }
                     .onChange(of: apiKey) {
                         if apiKey.isEmpty {
@@ -32,6 +34,21 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Web Search (Optional)") {
+                SecureField("Brave Search API Key", text: $braveSearchAPIKey)
+                    .onChange(of: braveSearchAPIKey) {
+                        if braveSearchAPIKey.isEmpty {
+                            KeychainManager.delete(key: "brave-search-api-key")
+                        } else {
+                            KeychainManager.save(key: "brave-search-api-key", value: braveSearchAPIKey)
+                        }
+                    }
+
+                Text("If empty, web search tool calling is disabled. Get a key at [brave.com/search/api](https://brave.com/search/api/)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Model") {
                 Picker("Model", selection: $selectedModel) {
                     ForEach(models, id: \.0) { id, name in
@@ -39,11 +56,11 @@ struct SettingsView: View {
                     }
                 }
                 .onChange(of: selectedModel) {
-                    UserDefaults.standard.set(selectedModel, forKey: "selectedModel")
+                    AppDefaults.shared.set(selectedModel, forKey: "selectedModel")
                 }
             }
         }
         .formStyle(.grouped)
-        .frame(width: 400, height: 220)
+        .frame(width: 430, height: 310)
     }
 }

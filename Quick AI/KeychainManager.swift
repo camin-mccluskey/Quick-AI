@@ -3,8 +3,14 @@ import Foundation
 import os
 
 enum KeychainManager {
-    private static let service = "dev.camin.Quick-AI"
     private static let logger = Logger(subsystem: "com.quickai", category: "Keychain")
+    private static var service: String {
+        if let override = ProcessInfo.processInfo.environment["QUICK_AI_KEYCHAIN_SERVICE"],
+           !override.isEmpty {
+            return override
+        }
+        return "dev.camin.Quick-AI"
+    }
 
     @discardableResult
     static func save(key: String, value: String) -> Bool {
