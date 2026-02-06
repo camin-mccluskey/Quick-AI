@@ -1,6 +1,10 @@
 import SwiftUI
+import os
+
+private let logger = Logger(subsystem: "com.quickai", category: "AppState")
 
 @Observable
+@MainActor
 final class AppState {
     var query = ""
     var response = ""
@@ -24,26 +28,45 @@ final class AppState {
             return
         }
 
+        streamTask?.cancel()
+
+        logger.info("submit() called with query: \(trimmed), model: \(self.selectedModel)")
         isLoading = true
         response = ""
         error = nil
 
-        streamTask = Task {
+        let model = selectedModel
+        streamTask = Task { @MainActor in
+            defer {
+                isLoading = false
+                streamTask = nil
+                logger.info("isLoading set to false")
+            }
+
             do {
+                logger.info("Starting stream...")
                 let stream = service.streamCompletion(
                     query: trimmed,
                     apiKey: apiKey,
-                    model: selectedModel
+                    model: model
                 )
+
+                var tokenCount = 0
                 for try await token in stream {
+                    tokenCount += 1
                     response += token
+                    if tokenCount <= 3 {
+                        logger.info("Token \(tokenCount): \(token)")
+                    }
                 }
+
+                logger.info("Stream finished. Total tokens: \(tokenCount), response length: \(self.response.count)")
             } catch is CancellationError {
-                // expected on dismiss
+                logger.info("Stream cancelled")
             } catch {
+                logger.error("Stream error: \(error.localizedDescription)")
                 self.error = error.localizedDescription
             }
-            isLoading = false
         }
     }
 

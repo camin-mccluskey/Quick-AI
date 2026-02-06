@@ -3,8 +3,10 @@ import SwiftUI
 struct OverlayView: View {
     @Bindable var appState: AppState
     var onDismiss: () -> Void
+    var onResponseVisibilityChanged: (Bool) -> Void = { _ in }
 
     @FocusState private var isInputFocused: Bool
+    private let bottomAnchorID = "response-bottom"
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,13 +36,26 @@ struct OverlayView: View {
             if showResponseArea {
                 Divider()
 
-                ScrollView {
-                    responseContent
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(16)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            responseContent
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(16)
+
+                            Color.clear
+                                .frame(height: 1)
+                                .id(bottomAnchorID)
+                        }
+                    }
+                    .onAppear {
+                        scrollToBottom(proxy)
+                    }
+                    .onChange(of: appState.response) { _, _ in
+                        scrollToBottom(proxy)
+                    }
                 }
                 .frame(maxHeight: 500)
-                .defaultScrollAnchor(.bottom)
             }
         }
         .frame(width: 600)
@@ -53,6 +68,10 @@ struct OverlayView: View {
         .shadow(color: .black.opacity(0.25), radius: 20, y: 8)
         .onAppear {
             isInputFocused = true
+            onResponseVisibilityChanged(showResponseArea)
+        }
+        .onChange(of: showResponseArea) { _, newValue in
+            onResponseVisibilityChanged(newValue)
         }
     }
 
@@ -73,6 +92,7 @@ struct OverlayView: View {
         } else {
             Text(markdownAttributedString)
                 .font(.system(size: 14))
+                .foregroundStyle(.primary)
                 .textSelection(.enabled)
         }
     }
@@ -80,7 +100,14 @@ struct OverlayView: View {
     private var markdownAttributedString: AttributedString {
         (try? AttributedString(
             markdown: appState.response,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+            options: .init(interpretedSyntax: .full)
         )) ?? AttributedString(appState.response)
+    }
+
+    private func scrollToBottom(_ proxy: ScrollViewProxy) {
+        guard showResponseArea else { return }
+        withAnimation(.easeOut(duration: 0.12)) {
+            proxy.scrollTo(bottomAnchorID, anchor: .bottom)
+        }
     }
 }

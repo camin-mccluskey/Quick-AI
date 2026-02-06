@@ -2,6 +2,12 @@ import AppKit
 import SwiftUI
 
 final class OverlayPanel: NSPanel {
+    private enum Layout {
+        static let width: CGFloat = 600
+        static let compactHeight: CGFloat = 80
+        static let expandedHeight: CGFloat = 420
+    }
+
     private let appState: AppState
     private var clickMonitor: Any?
     private var escMonitor: Any?
@@ -10,7 +16,7 @@ final class OverlayPanel: NSPanel {
         self.appState = appState
 
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 600, height: 80),
+            contentRect: NSRect(x: 0, y: 0, width: Layout.width, height: Layout.compactHeight),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -25,9 +31,15 @@ final class OverlayPanel: NSPanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         animationBehavior = .utilityWindow
 
-        let overlayView = OverlayView(appState: appState, onDismiss: { [weak self] in
-            self?.hideOverlay()
-        })
+        let overlayView = OverlayView(
+            appState: appState,
+            onDismiss: { [weak self] in
+                self?.hideOverlay()
+            },
+            onResponseVisibilityChanged: { [weak self] isVisible in
+                self?.setExpandedState(isVisible)
+            }
+        )
 
         let hostingView = NSHostingView(rootView: overlayView)
         hostingView.sizingOptions = [.intrinsicContentSize]
@@ -39,6 +51,7 @@ final class OverlayPanel: NSPanel {
 
     func showOverlay() {
         appState.reset()
+        setExpandedState(false, animated: false)
         positionAtScreenBottom()
         alphaValue = 0
         makeKeyAndOrderFront(nil)
@@ -79,7 +92,27 @@ final class OverlayPanel: NSPanel {
             animator().alphaValue = 0
         } completionHandler: {
             self.orderOut(nil)
+            self.setExpandedState(false, animated: false)
             self.appState.reset()
+        }
+    }
+
+    private func setExpandedState(_ isExpanded: Bool, animated: Bool = true) {
+        let targetHeight = isExpanded ? Layout.expandedHeight : Layout.compactHeight
+        guard abs(frame.height - targetHeight) > .ulpOfOne else { return }
+
+        var newFrame = frame
+        newFrame.origin.y -= (targetHeight - frame.height)
+        newFrame.size.height = targetHeight
+
+        if animated, isVisible {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.15
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                animator().setFrame(newFrame, display: true)
+            }
+        } else {
+            setFrame(newFrame, display: true)
         }
     }
 

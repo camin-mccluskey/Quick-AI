@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let logger = Logger(subsystem: "com.quickai", category: "OpenRouter")
 
 struct OpenRouterService {
     private let endpoint = URL(string: "https://openrouter.ai/api/v1/chat/completions")!
@@ -32,19 +35,23 @@ struct OpenRouterService {
                     ]
                     request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
+                    logger.info("Sending request to OpenRouter...")
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
 
                     guard let http = response as? HTTPURLResponse else {
+                        logger.error("Invalid response (not HTTPURLResponse)")
                         continuation.finish(throwing: OpenRouterError.invalidResponse)
                         return
                     }
 
+                    logger.info("HTTP status: \(http.statusCode)")
+
                     guard http.statusCode == 200 else {
-                        // Try to read error body
                         var errorBody = ""
                         for try await line in bytes.lines {
                             errorBody += line
                         }
+                        logger.error("API error \(http.statusCode): \(errorBody)")
                         continuation.finish(throwing: OpenRouterError.api(
                             statusCode: http.statusCode,
                             message: errorBody
@@ -52,23 +59,37 @@ struct OpenRouterService {
                         return
                     }
 
+                    var lineCount = 0
                     for try await line in bytes.lines {
                         try Task.checkCancellation()
+                        lineCount += 1
+                        if lineCount <= 5 {
+                            logger.info("SSE line \(lineCount): \(line.prefix(200))")
+                        }
 
                         guard line.hasPrefix("data: ") else { continue }
                         let payload = String(line.dropFirst(6))
-                        if payload.trimmingCharacters(in: .whitespaces) == "[DONE]" { break }
+                        if payload.trimmingCharacters(in: .whitespaces) == "[DONE]" {
+                            logger.info("Received [DONE] after \(lineCount) lines")
+                            break
+                        }
 
                         guard let data = payload.data(using: .utf8),
                               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                               let choices = json["choices"] as? [[String: Any]],
                               let delta = choices.first?["delta"] as? [String: Any],
                               let content = delta["content"] as? String
-                        else { continue }
+                        else {
+                            if lineCount <= 5 {
+                                logger.warning("Failed to parse SSE payload: \(payload.prefix(200))")
+                            }
+                            continue
+                        }
 
                         continuation.yield(content)
                     }
 
+                    logger.info("Stream loop ended. Total lines: \(lineCount)")
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
