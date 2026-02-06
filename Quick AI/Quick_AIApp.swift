@@ -1,21 +1,26 @@
-//
-//  Quick_AIApp.swift
-//  Quick AI
-//
-//  Created by Camin McCluskey on 05/02/2026.
-//
-
 import SwiftUI
-import CoreData
 
 @main
 struct Quick_AIApp: App {
-    let persistenceController = PersistenceController.shared
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+        MenuBarExtra("Quick AI", systemImage: "sparkle") {
+            SettingsLink {
+                Text("Settings...")
+            }
+            .keyboardShortcut(",")
+
+            Divider()
+
+            Button("Quit Quick AI") {
+                NSApplication.shared.terminate(nil)
+            }
+            .keyboardShortcut("q")
+        }
+
+        Settings {
+            SettingsView()
         }
     }
 }
