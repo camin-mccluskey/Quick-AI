@@ -135,6 +135,13 @@ struct OpenRouterService {
         Use web search only when the answer likely depends on current events or information that may be newer than your training cutoff.
         """
 
+    private static let groundedSearchFollowupPrompt = """
+        You have web search tool results in this conversation. \
+        For factual claims that depend on recency, prioritize those tool results over model memory. \
+        If results contain dates, include the most relevant concrete date in your answer. \
+        If results are insufficient, say that briefly instead of guessing.
+        """
+
     private static let webSearchTool: [String: Any] = [
         "type": "function",
         "function": [
@@ -255,6 +262,10 @@ struct OpenRouterService {
             ])
         }
 
+        messages.append([
+            "role": "system",
+            "content": Self.groundedSearchFollowupPrompt,
+        ])
         try await streamResponse(
             messages: messages,
             apiKey: apiKey,
@@ -398,23 +409,27 @@ struct OpenRouterService {
     }
 
     private static func serializeSearchResponse(_ response: SearchResponse) -> String {
-        let payload: [String: Any] = [
-            "query": response.query,
-            "results": response.results.map {
-                [
-                    "title": $0.title,
-                    "url": $0.url,
-                    "snippet": $0.snippet,
-                ]
-            },
+        let timestamp = ISO8601DateFormatter().string(from: Date())
+        var lines = [
+            "Search query: \(response.query)",
+            "Retrieved at: \(timestamp)",
+            "Results:",
         ]
 
-        guard let data = try? JSONSerialization.data(withJSONObject: payload),
-              let string = String(data: data, encoding: .utf8) else {
-            return "{\"query\":\"\(response.query)\",\"results\":[]}"
+        if response.results.isEmpty {
+            lines.append("No results found.")
+            return lines.joined(separator: "\n")
         }
 
-        return string
+        for (index, result) in response.results.enumerated() {
+            lines.append("\(index + 1). \(result.title)")
+            lines.append("URL: \(result.url)")
+            if !result.snippet.isEmpty {
+                lines.append("Snippet: \(result.snippet)")
+            }
+        }
+
+        return lines.joined(separator: "\n")
     }
 
     private static func extractAPIErrorMessage(from data: Data) -> String {

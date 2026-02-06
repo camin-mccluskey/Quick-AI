@@ -49,6 +49,7 @@ struct OverlayView: View {
                             Text("Searching web...")
                                 .font(.system(size: 12, weight: .medium))
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .foregroundStyle(.secondary)
                         .padding(.top, 10)
                         .padding(.horizontal, 16)
